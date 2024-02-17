@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="MAIN" Id="{f9351a7e-7ff5-47bf-9b6f-657a6a76e82c}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+
+VAR
+	fbUdp1 : FB_UdpReceiver(nListenPort := 10001);
+	send_data		: send_data_format;							// Send message variables
+	receive_data 	: receive_data_format;						// Receive message variables
+	target_host		: ARRAY [0..3] OF BYTE := [5, 4, 168, 192]; // IP Address of server
+	target_port		: UINT := 9998;								// Port number of server listening
+	cycle_count		: UINT;
+	send_once		: BOOL;
+	input_analog_data	AT%I*	: INT;
+	parameterized_port		: UINT := 10001;  // Specify receive port by HMI
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[// 運転中に待ち受けポートを変更したい場合ListenPortプロパティを使って変更する。
+fbUdp1.ListenPort := parameterized_port;
+
+// Prepare send data
+send_data.command := 'SCOM';
+send_data.seq_number := cycle_count;
+send_data.value := INT_TO_ULINT(input_analog_data);
+
+IF cycle_count > 65535 THEN
+	cycle_count := 0;
+ELSE
+	cycle_count := cycle_count + 1;
+END_IF
+
+// Send request command
+IF send_once THEN
+	fbUdp1.SendData(
+		dest := target_host,
+		nTargetPort := target_port,
+		data := F_BIGTYPE(pData := ADR(send_data), cbLen := SIZEOF(send_data))
+	);
+	//send_once := FALSE;
+END_IF
+
+
+fbUdp1(); 
+
+// Get received data to "receive_data" when data received.
+IF fbUdp1.receive_complete THEN
+	Tc2_System.MEMCPY(ADR(receive_data), fbUdp1.receive_data.pData, fbUdp1.receive_data.cbLen);
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="141" Count="0" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="67" Count="1" />
+      <LineId Id="70" Count="1" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="22" Count="0" />
+      <LineId Id="101" Count="0" />
+      <LineId Id="106" Count="5" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="102" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="26" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="30" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
